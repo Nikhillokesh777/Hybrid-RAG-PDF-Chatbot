@@ -52,16 +52,29 @@ rag-pdf-chatbot/
 
 ### 1️⃣ Clone the Repository
 
-git clone https://github.com/your-username/hybrid-rag-pdf-chatbot.git
+git clone https://github.com/your-username/hybrid-rag-pdf-chatbot.git 
+
+
 cd hybrid-rag-pdf-chatbot
-python -m venv venv
+
+python -m venv venv 
+
 venv\Scripts\activate
+
 pip install -r requirements.txt
 
+
+---
+
 **Create Google Gemini API Key:**
-Go to Google AI Studio
+#Go to Google AI Studio
+
 Sign in with your Google account
+
 Generate a new API key
+
 Copy the API key
+
 GOOGLE_API_KEY=your_api_key_here
+
 streamlit run app.py
