@@ -1,49 +1,67 @@
-<<<<<<< HEAD
-# Hybrid-RAG-PDF-Chatbot
-PDF question answering system using a hybrid RAG approach with document-based answers and general knowledge fallback.
-=======
 # Hybrid RAG PDF Chatbot
 
-A web-based Question Answering system built using a **Hybrid Retrieval-Augmented Generation (RAG)** approach.  
-The application allows users to upload PDF documents and ask natural language questions, generating accurate answers grounded in document content with a fallback to general knowledge when needed.
+This project is a web-based PDF Question Answering system.  
+Users can upload a PDF file and ask questions. The system tries to answer using the document content first. If the answer is not found in the document, it falls back to general knowledge.
+
+The application is built using Python and Streamlit.
 
 ---
 
-## 🚀 Features
-- PDF upload and text extraction
-- Text chunking for efficient retrieval
-- Top-k semantic retrieval
-- Hybrid decision logic (document-based vs general knowledge)
-- Answer generation using LLMs
-- Summary generation
-- Interactive web UI using Streamlit
+## 📌 Features
+- Upload PDF files
+- Extract text from PDFs
+- Split text into chunks
+- Retrieve relevant chunks based on the question
+- Decide whether the answer comes from the document or general knowledge
+- Display the final answer in a web interface
 
 ---
 
-## 🧠 Architecture Overview
-1. PDF Loader extracts text
-2. Chunking splits text into smaller segments
-3. Retriever fetches top-k relevant chunks
-4. Judge decides answer source (PDF or LLM knowledge)
-5. Generator produces final response
-6. Summary module provides document overview
+## 🧩 How the System Works (High Level)
+1. User uploads a PDF
+2. Text is extracted from the PDF
+3. Text is divided into smaller chunks
+4. Relevant chunks are selected based on the question
+5. A decision is made:
+   - If the answer exists in the document → use document data
+   - Else → use general knowledge
+6. The answer is displayed to the user
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technologies Used
 - Python
 - Streamlit
-- Google Gemini / LLM API
+- Google Gemini API
 - PyPDF2
+- python-dotenv
 
 ---
 
-## ▶️ How to Run Locally
+## 📂 Project Structure
+rag-pdf-chatbot/
+│
+├── app.py
+├── requirements.txt
+├── README.md
+├── .gitignore
 
-```bash
+---
+
+## ▶️ How to Run the Project Locally
+
+### 1️⃣ Clone the Repository
+
 git clone https://github.com/your-username/hybrid-rag-pdf-chatbot.git
 cd hybrid-rag-pdf-chatbot
+python -m venv venv
+venv\Scripts\activate
 pip install -r requirements.txt
-- generate your own api key and store in GOOGLE_API_KEY= 
+
+**Create Google Gemini API Key:**
+Go to Google AI Studio
+Sign in with your Google account
+Generate a new API key
+Copy the API key
+GOOGLE_API_KEY=your_api_key_here
 streamlit run app.py
->>>>>>> 883309d (Initial commit: Hybrid RAG PDF Chatbot)
