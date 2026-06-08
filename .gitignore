@@ -1,7 +1,11 @@
-# Environment variables
+# ── Secrets ───────────────────────────────────────────────────────────────────
 .env
 
-# Python
+# ── FAISS generated files (rebuilt automatically at runtime) ──────────────────
+faiss_index/*.index
+faiss_index/*.chunks.json
+
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,17 +27,21 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
+# ── Virtual environments ──────────────────────────────────────────────────────
 venv/
 env/
 ENV/
+.venv/
 
-# IDE
+# ── IDE ───────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ── Streamlit ─────────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
