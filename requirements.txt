@@ -1,8 +1,18 @@
-streamlit>=1.35.0
-PyPDF2>=3.0.0
-google-generativeai>=0.7.0
-python-dotenv>=1.0.0
-sentence-transformers>=3.0.0
+# Core API & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# RAG, Vector Search & Embeddings
 chromadb>=1.5.0
 faiss-cpu>=1.8.0
+sentence-transformers>=3.0.0
 numpy>=1.26.0
+
+# LLM & PDF Processing
+google-generativeai>=0.7.0
+PyPDF2>=3.0.0
+python-dotenv>=1.0.0
+
+# Optional / Legacy Prototype
+# streamlit>=1.35.0

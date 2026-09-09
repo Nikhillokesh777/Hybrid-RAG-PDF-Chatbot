@@ -19,18 +19,6 @@ from src.retrieval import (
     retrieve,
 )
 from src.text_cleaner import clean_chunk, clean_chunks, clean_text
-from src.ui_components import (
-    render_answer,
-    render_chat_controls,
-    render_chat_history,
-    render_empty_state,
-    render_index_status,
-    render_page_config,
-    render_retrieval_panel,
-    render_sidebar,
-    render_stats,
-    stream_text,
-)
 from src.chroma_store import ChromaVectorStore
 from src.vector_store import VectorStore, get_or_build_vector_store
 
@@ -63,15 +51,4 @@ __all__ = [
     "RetrievedChunk",
     # Memory
     "MemoryManager",
-    # UI
-    "render_page_config",
-    "render_sidebar",
-    "render_stats",
-    "render_empty_state",
-    "render_retrieval_panel",
-    "render_answer",
-    "render_chat_history",
-    "render_chat_controls",
-    "render_index_status",
-    "stream_text",
 ]

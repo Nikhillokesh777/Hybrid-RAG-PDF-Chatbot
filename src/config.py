@@ -24,7 +24,15 @@ CHROMA_DISTANCE_METRIC: str = "cosine"
 GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
-GEMINI_FALLBACK_MODEL: str      = "models/gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "models/gemini-flash-latest")
+GEMINI_PREFERRED_MODELS: list[str] = [
+    DEFAULT_GEMINI_MODEL,
+    "models/gemini-flash-latest",
+    "models/gemini-3.5-flash",
+    "models/gemini-3.7-flash",
+    "models/gemini-flash-lite-latest",
+]
+GEMINI_FALLBACK_MODEL: str      = DEFAULT_GEMINI_MODEL
 GEMINI_ANSWER_MAX_TOKENS: int   = 1700
 GEMINI_SUMMARY_MAX_TOKENS: int  = 500
 GEMINI_FALLBACK_MAX_TOKENS: int = 400

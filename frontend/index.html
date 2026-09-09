@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Question Answering System | ChromaDB Neural Search</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Marked.js (Markdown) & Highlight.js (Code Highlighting) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <!-- Custom Design System Stylesheet -->
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow-1"></div>
+  <div class="ambient-glow-2"></div>
+
+  <div class="app-container">
+
+    <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">
+          <h2>Neural RAG</h2>
+          <p>ChromaDB · Gemini 2.5</p>
+        </div>
+      </div>
+
+      <div class="sidebar-content">
+
+        <!-- Retrieval Parameters Card -->
+        <div class="side-card">
+          <div class="side-card-title">⚙️ Retrieval Settings</div>
+
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">Top-K Chunks</span>
+              <span class="control-value" id="topKValue">5</span>
+            </div>
+            <input type="range" id="topKSlider" class="slider-input" min="1" max="10" value="5" step="1" />
+          </div>
+
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">Cosine Distance Cutoff</span>
+              <span class="control-value" id="thresholdValue">0.85</span>
+            </div>
+            <input type="range" id="thresholdSlider" class="slider-input" min="0.10" max="1.50" value="0.85" step="0.05" />
+            <div class="threshold-scale">
+              <span class="scale-item high">● &lt;0.6 High</span>
+              <span class="scale-item med">● 0.6-0.85 Med</span>
+              <span class="scale-item low">● &gt;0.85 Low</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Engine Specs Card -->
+        <div class="side-card">
+          <div class="side-card-title">⚡ Engine Specs</div>
+          <div class="specs-list">
+            <div class="spec-item">
+              <span class="spec-key">Vector Database</span>
+              <span class="spec-val">ChromaDB (D: Drive)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-key">Embedding Model</span>
+              <span class="spec-val">all-MiniLM-L6-v2 (384-d)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-key">Distance Space</span>
+              <span class="spec-val">Cosine (HNSW)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-key">Generative LLM</span>
+              <span class="spec-val" id="specModelName">gemini-2.5-flash</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Documents List -->
+        <div class="side-card" id="activeDocsCard">
+          <div class="side-card-title">📁 Active Documents</div>
+          <div class="doc-chip-list" id="docChipList">
+            <div style="font-size: 0.75rem; color: var(--text-dim);">No PDF uploaded yet</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <button class="btn-secondary" id="clearChatBtn" title="Clear chat history">
+          🗑️ Clear
+        </button>
+        <button class="btn-secondary" id="exportChatBtn" title="Export chat transcript">
+          ⬇️ Export
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── Main Viewport ────────────────────────────────────────────────── -->
+    <main class="main-viewport">
+
+      <!-- Top Navigation Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="btn-icon" id="sidebarToggle" title="Toggle Sidebar">☰</button>
+          <div class="status-badge" id="headerStatusBadge">
+            <span class="pulse-dot"></span>
+            <span id="headerStatusText">ChromaDB Engine Ready</span>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn-secondary" id="summaryBtn" style="display:none;">
+            📝 Summary
+          </button>
+          <label class="btn-secondary" for="fileInputUpload" style="cursor: pointer;">
+            📁 Upload PDF
+          </label>
+          <input type="file" id="fileInputUpload" accept=".pdf" multiple style="display: none;" />
+        </div>
+      </header>
+
+      <!-- Glassmorphic 5-Metric Document Strip -->
+      <section class="metrics-strip" id="metricsStrip">
+        <div class="metric-card">
+          <div class="metric-icon">📁</div>
+          <div class="metric-details">
+            <span class="metric-label">Files</span>
+            <span class="metric-value" id="metricFiles">0</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">📑</div>
+          <div class="metric-details">
+            <span class="metric-label">Pages</span>
+            <span class="metric-value" id="metricPages">0</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🔤</div>
+          <div class="metric-details">
+            <span class="metric-label">Characters</span>
+            <span class="metric-value" id="metricChars">0</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🧩</div>
+          <div class="metric-details">
+            <span class="metric-label">Chunks</span>
+            <span class="metric-value" id="metricChunks">0</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">📏</div>
+          <div class="metric-details">
+            <span class="metric-label">Avg Chunk</span>
+            <span class="metric-value" id="metricAvg">0 ch</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Chat and Content Scroll Area -->
+      <div class="chat-scroll-area" id="chatScrollArea">
+        <div class="chat-inner-container">
+
+          <!-- Empty State / Hero Upload View -->
+          <div class="empty-state-view" id="emptyStateView">
+            <div class="hero-banner">
+              <div class="hero-badge">⚡ Neural Document Intelligence</div>
+              <h1 class="hero-title">Intelligent PDF Search & Chat</h1>
+              <p class="hero-subtitle">
+                Upload one or multiple PDF documents to build a persistent, cosine-indexed ChromaDB vector store. Ask complex questions with strict document grounding.
+              </p>
+            </div>
+
+            <!-- Drag and Drop Zone -->
+            <div class="dropzone-card" id="dropzoneCard">
+              <div class="dropzone-icon">📄</div>
+              <div class="dropzone-title">Drop your PDF documents here</div>
+              <p class="dropzone-desc">Drag and drop one or multiple PDF files, or click to browse from your computer.</p>
+              <button class="btn-upload-browse" type="button">Browse Files</button>
+            </div>
+
+            <!-- Feature Cards -->
+            <div class="features-grid">
+              <div class="feature-pill">
+                <div class="feature-pill-title">📑 Multi-PDF Ingestion</div>
+                <div class="feature-pill-desc">Seamlessly extract, sanitize, and partition text across multiple PDFs with sentence-aware boundaries.</div>
+              </div>
+              <div class="feature-pill">
+                <div class="feature-pill-title">🗄️ ChromaDB on D: Drive</div>
+                <div class="feature-pill-desc">Local, embedded vector database with persistent HNSW cosine indexing and document metadata isolation.</div>
+              </div>
+              <div class="feature-pill">
+                <div class="feature-pill-title">🤖 Dual-Path Reasoning</div>
+                <div class="feature-pill-desc">Strict document grounding with automated LLM Judge verification and general knowledge fallback.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Timeline -->
+          <div class="chat-messages" id="chatMessages" style="display: none;"></div>
+
+        </div>
+      </div>
+
+      <!-- Quick Prompt Suggestions Bar -->
+      <div class="suggestions-bar" id="suggestionsBar" style="display: none;">
+        <button class="suggestion-chip" data-query="Provide a comprehensive summary of this document.">
+          📝 Document Summary
+        </button>
+        <button class="suggestion-chip" data-query="What are the main key points and findings?">
+          💡 Key Findings
+        </button>
+        <button class="suggestion-chip" data-query="What are the technical specifications or methodologies described?">
+          ⚙️ Methodology & Specs
+        </button>
+      </div>
+
+      <!-- Chat Input Bar -->
+      <div class="chat-input-wrapper">
+        <div class="input-box-container">
+          <textarea
+            id="queryInput"
+            class="chat-textarea"
+            placeholder="Upload a PDF above to begin asking questions..."
+            rows="1"
+            disabled
+          ></textarea>
+          <button id="sendBtn" class="btn-send" title="Send Question" disabled>
+            ➤
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Logic -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -2,11 +2,14 @@
 
 ## 1. Executive Summary
 
-The **Hybrid RAG PDF Chatbot** is an intelligent, document-grounded question-answering system developed with **Python**, **Streamlit**, **Sentence-Transformers**, **FAISS**, and **Google Gemini LLM**. 
+The **Hybrid RAG PDF Chatbot** is an intelligent, document-grounded question-answering system developed with a decoupled architecture:
+- **Presentation Layer**: A high-performance modern Single-Page Application (HTML5, CSS3, ES6 JavaScript) featuring glassmorphism, responsive sidebar controls, real-time citation panels, and chat history.
+- **Application & API Layer**: **FastAPI** asynchronous REST backend with OpenAPI/Swagger documentation (`/docs`), streaming endpoints, and file upload handlers.
+- **Vector & RAG Core**: **ChromaDB** & **FAISS** vector storage, **Sentence-Transformers** (`all-MiniLM-L6-v2`), and **Google Gemini LLM** (`gemini-2.5-flash`).
 
 Unlike conventional naive RAG systems that either hallucinate when context is missing or strictly fail on out-of-document queries, this system implements a **Hybrid Decision Architecture**:
-1. It ingests single or multiple PDF documents, extracts clean text, splits content into sentence-bounded chunks, and builds/caches a high-performance vector index using FAISS and local embeddings (`all-MiniLM-L6-v2`).
-2. When a user submits a query, it retrieves the top-$K$ nearest chunks via L2 distance and applies a distance threshold.
+1. It ingests single or multiple PDF documents, extracts clean text, splits content into sentence-bounded chunks, and builds/caches a high-performance vector index using ChromaDB/FAISS and local embeddings (`all-MiniLM-L6-v2`).
+2. When a user submits a query, it retrieves the top-$K$ nearest chunks and applies a distance threshold.
 3. It performs an **LLM Judge** verification step: Gemini assesses whether the retrieved document context is genuinely sufficient to answer the question.
 4. If sufficient, Gemini generates a strictly grounded answer with source citations. If insufficient or absent, the pipeline falls back gracefully to Gemini's general knowledge base while alerting the user.
 5. All interactions are recorded in a multi-turn conversation memory with sliding-window history injection for contextual continuity.
@@ -17,11 +20,17 @@ Unlike conventional naive RAG systems that either hallucinate when context is mi
 
 ```mermaid
 flowchart TB
-    subgraph UI_Layer["🖥️ Presentation & UI Layer (Streamlit)"]
-        UI[Streamlit Web App: app.py]
-        Sidebar[Sidebar Controls: Top-K, L2 Threshold, Model Info]
-        Dashboard[Stats Dashboard: Pages, Chunks, Tokens]
-        ChatUI[Chat Stream & Citation Panels: ui_components.py]
+    subgraph UI_Layer["🖥️ Presentation Layer (Modern Web Client)"]
+        UI["Web App: frontend/index.html & app.js"]
+        Sidebar["Glassmorphic Sidebar: Controls & Stats"]
+        ChatUI["Chat Thread, Metrics & Citation Cards: frontend/style.css"]
+    end
+
+    subgraph API_Layer["⚡ API & Orchestration Layer (FastAPI)"]
+        Server["FastAPI Server: server.py / main.py"]
+        UploadEP["/api/upload Endpoint"]
+        QueryEP["/api/query Endpoint"]
+        SummaryEP["/api/summary Endpoint"]
     end
 
     subgraph Ingestion_Layer["📄 Ingestion & Text Processing Pipeline"]
@@ -293,26 +302,34 @@ All global application defaults are maintained in [src/config.py](file:///d:/Des
 ```text
 pdf_rag_app/
 │
-├── app.py                      # Main Streamlit application orchestrator
-├── requirements.txt            # Python dependencies (Streamlit, PyPDF2, FAISS, etc.)
+├── main.py                     # Primary application launcher
+├── server.py                   # FastAPI REST server & static file provider
+├── requirements.txt            # Python dependencies (FastAPI, ChromaDB, etc.)
 ├── README.md                   # Quickstart instructions and setup guide
 ├── ARCHITECTURE.md             # Implementation architecture and flow documentation
 ├── .env.example                # Environment template (GOOGLE_API_KEY)
 │
-├── faiss_index/                # Persistent vector database storage
-│   ├── <fingerprint>.index     # Serialized FAISS IndexFlatL2 binaries
-│   └── <fingerprint>.chunks.json # Serialized chunk text corresponding to vectors
+├── frontend/                   # Modern Single-Page Web Client
+│   ├── index.html              # HTML5 application structure
+│   ├── style.css               # Modern glassmorphic styles & animations
+│   └── app.js                  # Frontend client logic & REST API bindings
+│
+├── chroma_db/                  # Persistent ChromaDB storage directory
+├── faiss_index/                # FAISS vector store cache directory
 │
 ├── src/                        # Core modular library
 │   ├── __init__.py             # Public module exports
+│   ├── chroma_store.py         # ChromaDB persistence & similarity retrieval
+│   ├── vector_store.py         # SentenceTransformer embeddings and FAISS manager
 │   ├── config.py               # Constants, token limits, and hyperparameters
 │   ├── pdf_processor.py        # PDF text extraction and error recovery
 │   ├── text_cleaner.py         # Regex cleansing and Unicode normalization
 │   ├── chunker.py              # Sentence-aware text chunking
-│   ├── vector_store.py         # SentenceTransformer embeddings and FAISS index manager
-│   ├── retrieval.py            # Top-K L2 similarity search and threshold filtering
-│   ├── memory_manager.py       # Conversational memory and history exports
-│   └── ui_components.py        # Streamlit components, metrics, panels, and streaming
+│   ├── retrieval.py            # Similarity search, threshold filtering & LLM Judge
+│   └── memory_manager.py       # Conversational memory and history exports
+│
+└── archive/
+    └── streamlit_legacy/       # Archived legacy Streamlit prototype
 ```
 
 ---
