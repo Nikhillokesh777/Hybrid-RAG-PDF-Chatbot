@@ -39,12 +39,19 @@ The application is built using Python and Streamlit.
 ---
 
 ## 📂 Project Structure
-rag-pdf-chatbot/
+```text
+Hybrid-RAG-PDF-Chatbot/
 │
-├── app.py
-├── requirements.txt
-├── README.md
-├── .gitignore
+├── app.py                  # Main Streamlit application
+├── requirements.txt        # Project dependencies
+├── README.md               # Quickstart guide
+├── ARCHITECTURE.md         # Full implementation architecture & system flow
+├── .env.example            # Environment variable template
+├── faiss_index/            # Persistent vector database storage
+└── src/                    # Core modules (processing, chunking, retrieval, memory, UI)
+```
+
+For detailed architecture diagrams, component breakdown, and end-to-end data flows, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -52,10 +59,10 @@ rag-pdf-chatbot/
 
 ### 1️⃣ Clone the Repository
 
-git clone https://github.com/your-username/hybrid-rag-pdf-chatbot.git 
-
-
-cd hybrid-rag-pdf-chatbot
+```bash
+git clone https://github.com/Nikhillokesh777/Hybrid-RAG-PDF-Chatbot.git
+cd Hybrid-RAG-PDF-Chatbot
+```
 
 python -m venv venv 
 
