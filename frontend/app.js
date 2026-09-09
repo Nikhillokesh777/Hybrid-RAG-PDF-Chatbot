@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const thresholdSlider = document.getElementById('thresholdSlider');
   const thresholdValue = document.getElementById('thresholdValue');
   const docChipList = document.getElementById('docChipList');
+  const clearAllDocsBtn = document.getElementById('clearAllDocsBtn');
   const clearChatBtn = document.getElementById('clearChatBtn');
   const exportChatBtn = document.getElementById('exportChatBtn');
   const summaryBtn = document.getElementById('summaryBtn');
@@ -67,11 +68,20 @@ document.addEventListener('DOMContentLoaded', () => {
           state.activeDocs = data.active_docs;
           updateDocChips();
           enableChatInput();
+          emptyStateView.style.display = 'none';
+          chatMessages.style.display = 'flex';
+          suggestionsBar.style.display = 'flex';
+          summaryBtn.style.display = 'inline-flex';
+          headerStatusText.textContent = `ChromaDB Active (${data.total_vectors || 0} vectors)`;
+        } else {
+          state.activeDocs = [];
+          updateDocChips();
+          resetToEmptyState();
+          headerStatusText.textContent = 'Ready — Upload PDF';
         }
         if (data.stats) {
           updateMetricsStrip(data.stats);
         }
-        headerStatusText.textContent = `ChromaDB Active (${data.total_vectors || 0} vectors)`;
       }
     } catch (err) {
       console.warn('Status check failed:', err);
@@ -184,19 +194,98 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateDocChips() {
     if (state.activeDocs.length === 0) {
       docChipList.innerHTML = `<div style="font-size: 0.75rem; color: var(--text-dim);">No PDF uploaded yet</div>`;
+      if (clearAllDocsBtn) clearAllDocsBtn.style.display = 'none';
       return;
     }
+
+    if (clearAllDocsBtn) clearAllDocsBtn.style.display = 'inline-block';
 
     docChipList.innerHTML = state.activeDocs
       .map(
         (name) => `
       <div class="doc-chip" title="${escapeHtml(name)}">
-        <span>📄</span>
-        <span>${escapeHtml(name)}</span>
+        <div class="doc-chip-info">
+          <span>📄</span>
+          <span class="doc-chip-name">${escapeHtml(name)}</span>
+        </div>
+        <button class="doc-chip-delete" title="Delete ${escapeHtml(name)}" onclick="window.deleteDoc('${escapeHtml(name).replace(/'/g, "\\'")}')">×</button>
       </div>
     `
       )
       .join('');
+  }
+
+  function resetToEmptyState() {
+    emptyStateView.style.display = 'flex';
+    chatMessages.style.display = 'none';
+    chatMessages.innerHTML = '';
+    suggestionsBar.style.display = 'none';
+    summaryBtn.style.display = 'none';
+    metricsStrip.style.display = 'none';
+    queryInput.disabled = true;
+    sendBtn.disabled = true;
+    queryInput.value = '';
+    queryInput.placeholder = 'Upload a PDF to start asking questions...';
+    fileInputUpload.value = '';
+  }
+
+  // ── Document Deletion Handlers ───────────────────────────────────────────
+  window.deleteDoc = async (docName) => {
+    if (!docName || state.isProcessing) return;
+    try {
+      showToast(`🗑️ Deleting "${docName}"...`);
+      const res = await fetch(`/api/documents/${encodeURIComponent(docName)}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Delete failed');
+      }
+
+      const data = await res.json();
+      state.activeDocs = data.remaining_docs || [];
+      state.stats = data.stats;
+
+      updateDocChips();
+
+      if (state.activeDocs.length === 0) {
+        resetToEmptyState();
+        showToast(`🗑️ "${docName}" deleted. No active documents remaining.`);
+        headerStatusText.textContent = 'Ready — Upload PDF';
+      } else {
+        updateMetricsStrip(data.stats);
+        showToast(`🗑️ "${docName}" deleted.`);
+        headerStatusText.textContent = `ChromaDB Active (${data.stats?.total_chunks || 0} chunks persisted)`;
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(`❌ Error deleting "${docName}": ${err.message}`);
+    }
+  };
+
+  if (clearAllDocsBtn) {
+    clearAllDocsBtn.addEventListener('click', async () => {
+      if (state.activeDocs.length === 0) return;
+      if (!confirm('Are you sure you want to remove all uploaded PDFs?')) return;
+      try {
+        showToast('🗑️ Clearing all documents...');
+        const res = await fetch('/api/documents', { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Failed to clear documents');
+        }
+        state.activeDocs = [];
+        state.stats = null;
+        updateDocChips();
+        resetToEmptyState();
+        showToast('🗑️ All documents removed successfully.');
+        headerStatusText.textContent = 'Ready — Upload PDF';
+      } catch (err) {
+        console.error(err);
+        showToast(`❌ Error clearing documents: ${err.message}`);
+      }
+    });
   }
 
   function updateMetricsStrip(stats) {

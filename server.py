@@ -120,6 +120,7 @@ def generate_content_with_failover(
 class ServerState:
     vector_store: Any = None
     all_chunks: list[str] = []
+    doc_details: dict[str, dict[str, Any]] = {}
     active_doc_names: list[str] = []
     stats: dict[str, Any] = {}
     memory: MemoryManager = MemoryManager()
@@ -250,10 +251,7 @@ async def upload_pdfs(files: list[UploadFile] = File(...)):
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
 
-    all_chunks: list[str] = []
-    total_pages = 0
-    total_chars = 0
-    doc_names: list[str] = []
+    new_doc_names: list[str] = []
 
     for f in files:
         content = await f.read()
@@ -266,27 +264,41 @@ async def upload_pdfs(files: list[UploadFile] = File(...)):
         raw_chunks = chunk_text(cleaned, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP)
         valid_chunks = clean_chunks(raw_chunks)
 
-        all_chunks.extend(valid_chunks)
-        total_pages += extraction.page_count
-        total_chars += extraction.character_count
-        doc_names.append(f.filename or "uploaded_file.pdf")
+        filename = f.filename or "uploaded_file.pdf"
+        state.doc_details[filename] = {
+            "chunks": valid_chunks,
+            "pages": extraction.page_count,
+            "chars": extraction.character_count,
+        }
+        if filename not in state.active_doc_names:
+            state.active_doc_names.append(filename)
+        new_doc_names.append(filename)
+
+    # Reassemble all active chunks
+    all_chunks: list[str] = []
+    total_pages = 0
+    total_chars = 0
+    for name in state.active_doc_names:
+        info = state.doc_details.get(name, {})
+        all_chunks.extend(info.get("chunks", []))
+        total_pages += info.get("pages", 0)
+        total_chars += info.get("chars", 0)
 
     if not all_chunks:
         raise HTTPException(status_code=400, detail="No readable text could be extracted from the uploaded PDF(s).")
 
     # Index into ChromaDB
     t0 = time.perf_counter()
-    doc_label = doc_names[0] if doc_names else "document"
+    doc_label = state.active_doc_names[0] if state.active_doc_names else "document"
     vector_store, was_cached = get_or_build_vector_store(all_chunks, doc_name=doc_label)
     elapsed_ms = (time.perf_counter() - t0) * 1000
 
     state.vector_store = vector_store
     state.all_chunks = all_chunks
-    state.active_doc_names = doc_names
 
     avg_chunk = int(sum(len(c) for c in all_chunks) / len(all_chunks)) if all_chunks else 0
     state.stats = {
-        "file_count": len(doc_names),
+        "file_count": len(state.active_doc_names),
         "total_pages": total_pages,
         "total_chars": total_chars,
         "total_chunks": len(all_chunks),
@@ -295,13 +307,95 @@ async def upload_pdfs(files: list[UploadFile] = File(...)):
         "index_ms": round(elapsed_ms, 1),
     }
 
-    logger.info("Upload processed %d files (%d chunks) in %.1fms (cached=%s)", len(doc_names), len(all_chunks), elapsed_ms, was_cached)
+    logger.info("Upload processed %d active files (%d chunks) in %.1fms (cached=%s)", len(state.active_doc_names), len(all_chunks), elapsed_ms, was_cached)
 
     return {
         "success": True,
-        "doc_names": doc_names,
+        "doc_names": state.active_doc_names,
         "stats": state.stats,
     }
+
+
+@app.delete("/api/documents/{doc_name}")
+async def delete_document(doc_name: str):
+    """Remove a specific PDF document from active session and ChromaDB."""
+    if doc_name not in state.active_doc_names:
+        raise HTTPException(status_code=404, detail=f"Document '{doc_name}' not found.")
+
+    # Remove from ChromaDB collection if indexed
+    try:
+        if state.vector_store and hasattr(state.vector_store, "collection"):
+            state.vector_store.collection.delete(where={"doc_name": doc_name})
+            logger.info("Deleted chunks for '%s' from ChromaDB.", doc_name)
+    except Exception as exc:
+        logger.warning("Could not delete '%s' from ChromaDB: %s", doc_name, exc)
+
+    state.active_doc_names.remove(doc_name)
+    state.doc_details.pop(doc_name, None)
+
+    if not state.active_doc_names:
+        state.vector_store = None
+        state.all_chunks = []
+        state.stats = {}
+        return {
+            "success": True,
+            "deleted": doc_name,
+            "remaining_docs": [],
+            "stats": None,
+        }
+
+    # Rebuild remaining chunks
+    all_chunks: list[str] = []
+    total_pages = 0
+    total_chars = 0
+    for name in state.active_doc_names:
+        info = state.doc_details.get(name, {})
+        all_chunks.extend(info.get("chunks", []))
+        total_pages += info.get("pages", 0)
+        total_chars += info.get("chars", 0)
+
+    state.all_chunks = all_chunks
+    avg_chunk = int(sum(len(c) for c in all_chunks) / len(all_chunks)) if all_chunks else 0
+    state.stats = {
+        "file_count": len(state.active_doc_names),
+        "total_pages": total_pages,
+        "total_chars": total_chars,
+        "total_chunks": len(all_chunks),
+        "avg_chunk_size": avg_chunk,
+        "was_cached": True,
+    }
+
+    vector_store, _ = get_or_build_vector_store(all_chunks, doc_name=state.active_doc_names[0])
+    state.vector_store = vector_store
+
+    return {
+        "success": True,
+        "deleted": doc_name,
+        "remaining_docs": state.active_doc_names,
+        "stats": state.stats,
+    }
+
+
+@app.delete("/api/documents")
+async def delete_all_documents():
+    """Clear all uploaded PDF documents and reset session state."""
+    try:
+        if state.vector_store and hasattr(state.vector_store, "collection"):
+            client = state.vector_store.collection._client
+            from src.config import CHROMA_COLLECTION_NAME
+            client.delete_collection(name=CHROMA_COLLECTION_NAME)
+            logger.info("ChromaDB collection '%s' reset.", CHROMA_COLLECTION_NAME)
+    except Exception as exc:
+        logger.warning("Error clearing ChromaDB collection: %s", exc)
+
+    state.vector_store = None
+    state.all_chunks = []
+    state.doc_details = {}
+    state.active_doc_names = []
+    state.stats = {}
+    state.memory.clear()
+
+    return {"success": True, "message": "All documents cleared successfully."}
 
 
 @app.post("/api/query")

@@ -92,7 +92,10 @@
 
         <!-- Active Documents List -->
         <div class="side-card" id="activeDocsCard">
-          <div class="side-card-title">📁 Active Documents</div>
+          <div class="side-card-title-row">
+            <div class="side-card-title" style="margin-bottom: 0;">📁 Active Documents</div>
+            <button class="btn-text-danger" id="clearAllDocsBtn" style="display: none;" title="Remove all active documents">Clear All</button>
+          </div>
           <div class="doc-chip-list" id="docChipList">
             <div style="font-size: 0.75rem; color: var(--text-dim);">No PDF uploaded yet</div>
           </div>
