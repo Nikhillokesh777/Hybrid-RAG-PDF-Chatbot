@@ -18,7 +18,7 @@ FAISS_INDEX_DIR.mkdir(parents=True, exist_ok=True)
 GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
-GEMINI_FALLBACK_MODEL: str      = "models/gemini-1.5-flash-latest"
+GEMINI_FALLBACK_MODEL: str      = "models/gemini-2.5-flash"
 GEMINI_ANSWER_MAX_TOKENS: int   = 1700
 GEMINI_SUMMARY_MAX_TOKENS: int  = 500
 GEMINI_FALLBACK_MAX_TOKENS: int = 400
