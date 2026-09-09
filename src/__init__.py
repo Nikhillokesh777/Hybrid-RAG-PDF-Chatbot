@@ -31,6 +31,7 @@ from src.ui_components import (
     render_stats,
     stream_text,
 )
+from src.chroma_store import ChromaVectorStore
 from src.vector_store import VectorStore, get_or_build_vector_store
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "chunk_text",
     # Vector store
     "VectorStore",
+    "ChromaVectorStore",
     "get_or_build_vector_store",
     # Retrieval
     "retrieve",

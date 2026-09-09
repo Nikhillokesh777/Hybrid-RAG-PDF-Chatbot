@@ -5,6 +5,9 @@
 faiss_index/*.index
 faiss_index/*.chunks.json
 
+# ── ChromaDB persistent database ──────────────────────────────────────────────
+chroma_db/
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]

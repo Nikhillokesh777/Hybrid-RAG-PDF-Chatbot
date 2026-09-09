@@ -162,34 +162,63 @@ def retrieve(
         show_progress_bar=False,
     ).astype(np.float32)
 
-    # ── Step 2: FAISS search ─────────────────────────────────────────────────
-    safe_k = min(k, store.index.ntotal)
-    distances, indices = store.index.search(query_vector, safe_k)
-
-    # ── Step 3: build ranked chunk list ─────────────────────────────────────
     all_chunks: list[RetrievedChunk] = []
 
-    for rank, (idx, dist) in enumerate(zip(indices[0], distances[0]), start=1):
-        if idx < 0 or idx >= len(store.chunks):
-            continue  # FAISS sentinel — fewer results than k
-
-        text = store.chunks[idx]
-        l2 = float(dist)
-        
-        # In normalized vector space: ||u-v||^2 = 2 - 2*cos(theta) => cos = 1 - l2/2
-        cosine = max(-1.0, min(1.0, 1.0 - (l2 / 2.0)))
-        passed = l2 <= similarity_threshold
-
-        all_chunks.append(
-            RetrievedChunk(
-                rank=rank,
-                text=text,
-                preview=_make_preview(text),
-                l2_distance=l2,
-                passed_threshold=passed,
-                cosine_similarity=cosine,
-            )
+    if hasattr(store, "collection"):
+        # ── ChromaDB search ──────────────────────────────────────────────────
+        safe_k = min(k, store.collection.count())
+        results = store.collection.query(
+            query_embeddings=query_vector.tolist(),
+            n_results=safe_k,
+            where={"fingerprint": store.fingerprint},
+            include=["documents", "distances", "metadatas"],
         )
+
+        docs = results.get("documents", [[]])[0] if results.get("documents") else []
+        dists = results.get("distances", [[]])[0] if results.get("distances") else []
+
+        for rank, (text, dist) in enumerate(zip(docs, dists), start=1):
+            d = float(dist)
+            # In cosine space: distance = 1 - cosine_sim => cosine_sim = 1 - distance
+            cosine = max(-1.0, min(1.0, 1.0 - d))
+            passed = d <= similarity_threshold
+
+            all_chunks.append(
+                RetrievedChunk(
+                    rank=rank,
+                    text=text,
+                    preview=_make_preview(text),
+                    l2_distance=d,
+                    passed_threshold=passed,
+                    cosine_similarity=cosine,
+                )
+            )
+    else:
+        # ── FAISS search (legacy fallback) ───────────────────────────────────
+        safe_k = min(k, store.index.ntotal)
+        distances, indices = store.index.search(query_vector, safe_k)
+
+        for rank, (idx, dist) in enumerate(zip(indices[0], distances[0]), start=1):
+            if idx < 0 or idx >= len(store.chunks):
+                continue  # FAISS sentinel — fewer results than k
+
+            text = store.chunks[idx]
+            l2 = float(dist)
+            
+            # In normalized vector space: ||u-v||^2 = 2 - 2*cos(theta) => cos = 1 - l2/2
+            cosine = max(-1.0, min(1.0, 1.0 - (l2 / 2.0)))
+            passed = l2 <= similarity_threshold
+
+            all_chunks.append(
+                RetrievedChunk(
+                    rank=rank,
+                    text=text,
+                    preview=_make_preview(text),
+                    l2_distance=l2,
+                    passed_threshold=passed,
+                    cosine_similarity=cosine,
+                )
+            )
 
     # ── Step 4: build context from passing chunks only ───────────────────────
     passing = [c for c in all_chunks if c.passed_threshold]

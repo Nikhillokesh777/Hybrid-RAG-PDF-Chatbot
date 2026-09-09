@@ -67,9 +67,9 @@ def render_empty_state() -> None:
                     </div>
                 </div>
                 <div class="feature-pill">
-                    <div class="feature-pill-title">⚡ Sub-millisecond Search</div>
+                    <div class="feature-pill-title">⚡ ChromaDB Vector Engine</div>
                     <div class="feature-pill-desc">
-                        384-dimensional dense vectors powered by FAISS L2 exact nearest-neighbor search.
+                        Embedded, persistent vector database on D: drive with cosine space indexing and rich chunk metadata.
                     </div>
                 </div>
                 <div class="feature-pill">
@@ -113,18 +113,18 @@ def render_sidebar(gemini_model_name: str) -> tuple[int, float]:
             min_value=1,
             max_value=10,
             value=DEFAULT_TOP_K,
-            help="Number of nearest chunks retrieved by FAISS per question.",
+            help="Number of nearest chunks retrieved by ChromaDB per question.",
         )
 
         similarity_threshold = st.slider(
-            "Similarity Threshold (L2 Distance)",
+            "Similarity Threshold (Cosine Distance)",
             min_value=0.1,
-            max_value=2.0,
+            max_value=1.5,
             value=DEFAULT_SIMILARITY_THRESHOLD,
             step=0.05,
             help=(
-                "Maximum Euclidean distance allowed for a chunk to reach Gemini. "
-                "Lower is stricter: <0.5 very close · 0.5–1.0 moderate · >1.0 distant."
+                "Maximum cosine distance allowed for a chunk to reach Gemini. "
+                "Lower is stricter: <0.6 very close · 0.6–0.85 moderate · >0.85 distant."
             ),
         )
 
@@ -134,9 +134,9 @@ def render_sidebar(gemini_model_name: str) -> tuple[int, float]:
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 0.75rem; margin-top: 0.4rem; font-size: 0.78rem;">
                 <div style="color: #94a3b8; margin-bottom: 0.25rem;">Current threshold cutoff: <b style="color: #6366f1;">{similarity_threshold:.2f}</b></div>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span style="color: #10b981;">● &lt;0.8 High</span>
-                    <span style="color: #f59e0b;">● 0.8-1.5 Med</span>
-                    <span style="color: #f43f5e;">● &gt;1.5 Low</span>
+                    <span style="color: #10b981;">● &lt;0.6 High</span>
+                    <span style="color: #f59e0b;">● 0.6-0.85 Med</span>
+                    <span style="color: #f43f5e;">● &gt;0.85 Low</span>
                 </div>
             </div>
             """,
@@ -152,12 +152,16 @@ def render_sidebar(gemini_model_name: str) -> tuple[int, float]:
                 <div class="sidebar-card-title">⚡ Engine Specs</div>
                 <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem;">
                     <div>
+                        <span style="color: #64748b;">Vector Database:</span><br/>
+                        <code style="color: #38bdf8;">ChromaDB (Persistent on D:)</code>
+                    </div>
+                    <div>
                         <span style="color: #64748b;">Embeddings:</span><br/>
                         <code style="color: #38bdf8;">{EMBEDDING_MODEL_NAME}</code>
                     </div>
                     <div>
-                        <span style="color: #64748b;">Dimension:</span><br/>
-                        <code style="color: #a78bfa;">384-d dense float32</code>
+                        <span style="color: #64748b;">Distance Metric:</span><br/>
+                        <code style="color: #a78bfa;">Cosine Space (HNSW)</code>
                     </div>
                     <div>
                         <span style="color: #64748b;">Generative LLM:</span><br/>
@@ -259,7 +263,7 @@ def render_retrieval_panel(
                     <div class="retrieval-header">
                         <div>
                             <span style="font-weight: 700; color: #f1f5f9; font-size: 0.95rem;">Rank #{chunk.rank}</span>
-                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.5rem;">L2: <b>{chunk.l2_distance:.3f}</b>{cos_display}</span>
+                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.5rem;">Dist: <b>{chunk.l2_distance:.3f}</b>{cos_display}</span>
                         </div>
                         <span class="attribution-pill {badge_class}">{badge_text}</span>
                     </div>
@@ -417,15 +421,15 @@ def render_chat_controls(memory: MemoryManager) -> None:
 
 # ── Index status ──────────────────────────────────────────────────────────────
 
-def render_index_status(ntotal: int, dimension: int, was_cached: bool) -> None:
-    """Render a clean FAISS index status badge."""
-    label = "⚡ Loaded instantly from disk cache" if was_cached else "🔨 Built & persisted to disk"
+def render_index_status(ntotal: int, dimension: int, was_cached: bool, backend: str = "ChromaDB") -> None:
+    """Render a clean vector index status badge."""
+    label = "⚡ Loaded instantly from persistent cache" if was_cached else "🔨 Indexed & persisted to D: drive"
     icon = "💾" if was_cached else "⚙️"
     st.markdown(
         f"""
         <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.82rem; color: #c7d2fe; display: flex; align-items: center; gap: 0.5rem;">
             <span>{icon}</span>
-            <span><b>FAISS Index Active:</b> {ntotal:,} vectors ({dimension}-dim) · {label}</span>
+            <span><b>{backend} Active:</b> {ntotal:,} vectors ({dimension}-dim cosine) · {label}</span>
         </div>
         """,
         unsafe_allow_html=True,

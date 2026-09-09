@@ -4,7 +4,7 @@ Stable production architecture: Retriever → Gemini
 
 Pipeline per question:
     1. Embed question
-    2. FAISS top-k semantic search
+    2. ChromaDB top-k semantic search (cosine distance)
     3. Retrieved chunks sent directly to Gemini (no compression, no filtering)
     4. Gemini generates a grounded natural language answer
     5. Answer streamed to UI with citations and timing
@@ -332,8 +332,8 @@ st.divider()
 # ── Vector store ──────────────────────────────────────────────────────────────
 with st.spinner("Preparing semantic index..."):
     try:
-        t0 = time.perf_counter()
-        vector_store, was_cached = get_or_build_vector_store(all_chunks)
+        doc_label = doc_names[0] if doc_names else "document"
+        vector_store, was_cached = get_or_build_vector_store(all_chunks, doc_name=doc_label)
         st.session_state.vector_store = vector_store
         logger.info(
             "Index ready: %d vectors in %.0f ms (cached=%s)",
@@ -346,7 +346,8 @@ with st.spinner("Preparing semantic index..."):
         logger.exception("Vector store build failed.")
         st.stop()
 
-render_index_status(vector_store.index.ntotal, vector_store.index.d, was_cached)
+backend = "ChromaDB" if hasattr(vector_store, "collection") else "FAISS"
+render_index_status(vector_store.index.ntotal, vector_store.index.d, was_cached, backend=backend)
 
 # ── Conversation history ──────────────────────────────────────────────────────
 render_chat_history(memory)

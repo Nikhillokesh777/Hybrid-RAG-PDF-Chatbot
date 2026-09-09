@@ -13,6 +13,12 @@ load_dotenv()
 ROOT_DIR: Path        = Path(__file__).resolve().parent.parent
 FAISS_INDEX_DIR: Path = ROOT_DIR / "faiss_index"
 FAISS_INDEX_DIR.mkdir(parents=True, exist_ok=True)
+CHROMA_DB_DIR: Path   = ROOT_DIR / "chroma_db"
+CHROMA_DB_DIR.mkdir(parents=True, exist_ok=True)
+
+# ── ChromaDB ──────────────────────────────────────────────────────────────────
+CHROMA_COLLECTION_NAME: str = "pdf_rag_documents"
+CHROMA_DISTANCE_METRIC: str = "cosine"
 
 # ── API ───────────────────────────────────────────────────────────────────────
 GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
@@ -35,7 +41,7 @@ DEFAULT_CHUNK_OVERLAP: int = 200
 
 # ── Retrieval ─────────────────────────────────────────────────────────────────
 DEFAULT_TOP_K: int                  = 5
-DEFAULT_SIMILARITY_THRESHOLD: float = 1.7
+DEFAULT_SIMILARITY_THRESHOLD: float = 0.85
 PREVIEW_LENGTH: int                 = 300
 
 # ── Memory ────────────────────────────────────────────────────────────────────

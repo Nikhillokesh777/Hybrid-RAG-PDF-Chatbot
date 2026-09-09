@@ -194,20 +194,34 @@ def load_vector_store(chunks: list[str]) -> VectorStore | None:
         return None
 
 
-def get_or_build_vector_store(chunks: list[str]) -> tuple[VectorStore, bool]:
+def get_or_build_vector_store(
+    chunks: list[str],
+    doc_name: str = "document",
+) -> tuple[Any, bool]:
     """
-    Load a cached VectorStore if available, otherwise build and save a new one.
+    Load a cached vector store if available, otherwise build and persist a new one.
 
-    This is the primary entry point used by the Streamlit app. It abstracts
-    the load → miss → build → save flow into a single call.
+    Prefers ChromaDB embedded vector database on the D: drive, maintaining
+    vectors, metadata, and chunks in ACID-compliant persistent storage.
+    Falls back gracefully to local FAISS if ChromaDB encounters any issue.
 
     Args:
         chunks: Cleaned text chunks from the current document.
+        doc_name: Name of document for metadata tracking.
 
     Returns:
         (store, was_cached) where was_cached=True means the index was
-        loaded from disk rather than freshly computed.
+        rehydrated from disk rather than freshly computed.
     """
+    try:
+        from src.chroma_store import get_or_build_vector_store as chroma_build
+        return chroma_build(chunks, doc_name=doc_name)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "ChromaDB storage engine unavailable (%s); falling back to FAISS.", exc
+        )
+
     cached = load_vector_store(chunks)
     if cached is not None:
         return cached, True
