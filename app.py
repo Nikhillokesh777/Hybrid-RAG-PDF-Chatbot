@@ -36,6 +36,7 @@ from src import (
     render_answer,
     render_chat_controls,
     render_chat_history,
+    render_empty_state,
     render_index_status,
     render_page_config,
     render_retrieval_panel,
@@ -247,7 +248,7 @@ uploaded_files = st.file_uploader(
 )
 
 if not uploaded_files:
-    st.info("Upload at least one PDF to get started.")
+    render_empty_state()
     st.stop()
 
 # ── Process PDFs ──────────────────────────────────────────────────────────────
@@ -318,8 +319,27 @@ render_chat_controls(memory)
 if not memory.is_empty:
     st.divider()
 
+# ── Suggested questions ───────────────────────────────────────────────────────
+st.markdown(
+    "<div style='font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; color: #818cf8; text-transform: uppercase; margin-bottom: 0.4rem;'>"
+    "💡 Quick Inquiries</div>",
+    unsafe_allow_html=True,
+)
+col_q1, col_q2, col_q3 = st.columns(3)
+clicked_q = None
+with col_q1:
+    if st.button("📋 Executive Summary", use_container_width=True):
+        clicked_q = "Provide an executive summary of the document with key highlights."
+with col_q2:
+    if st.button("🔍 Main Findings", use_container_width=True):
+        clicked_q = "What are the core conclusions and major findings discussed?"
+with col_q3:
+    if st.button("📊 Key Data Points", use_container_width=True):
+        clicked_q = "List any critical metrics, statistics, or methodology details mentioned."
+
 # ── Question input ────────────────────────────────────────────────────────────
-question = st.chat_input("Ask a question about your document(s)...")
+input_q = st.chat_input("Ask a question about your document(s)...")
+question = clicked_q or input_q
 
 if not question:
     st.stop()
