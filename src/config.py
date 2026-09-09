@@ -34,8 +34,8 @@ DEFAULT_CHUNK_SIZE: int    = 1000
 DEFAULT_CHUNK_OVERLAP: int = 200
 
 # ── Retrieval ─────────────────────────────────────────────────────────────────
-DEFAULT_TOP_K: int                  = 3
-DEFAULT_SIMILARITY_THRESHOLD: float = 1.2
+DEFAULT_TOP_K: int                  = 5
+DEFAULT_SIMILARITY_THRESHOLD: float = 1.7
 PREVIEW_LENGTH: int                 = 300
 
 # ── Memory ────────────────────────────────────────────────────────────────────

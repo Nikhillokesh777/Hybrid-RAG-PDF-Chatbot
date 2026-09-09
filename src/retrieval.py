@@ -43,13 +43,14 @@ class RetrievedChunk:
     A single chunk returned by the retrieval pipeline.
 
     Attributes:
-        rank:        1-based relevance rank (1 = most similar to query).
-        text:        Full cleaned chunk text.
-        preview:     First PREVIEW_LENGTH characters — used in the UI so the
-                     expander does not dump an entire wall of text.
-        l2_distance: Raw L2 distance from the query vector. Lower = more
-                     semantically similar.
-        passed_threshold: True when l2_distance is below the configured limit.
+        rank:              1-based relevance rank (1 = most similar to query).
+        text:              Full cleaned chunk text.
+        preview:           First PREVIEW_LENGTH characters — used in the UI so the
+                           expander does not dump an entire wall of text.
+        l2_distance:       Raw L2 distance from the query vector. Lower = more
+                           semantically similar.
+        cosine_similarity: Cosine similarity in range [-1, 1]. Higher = closer.
+        passed_threshold:  True when l2_distance is below the configured limit.
     """
 
     rank: int
@@ -57,6 +58,7 @@ class RetrievedChunk:
     preview: str
     l2_distance: float
     passed_threshold: bool
+    cosine_similarity: float = 0.0
 
 
 @dataclass
@@ -99,7 +101,7 @@ class RetrievalResult:
 def retrieve(
     query: str,
     store: VectorStore,
-    k: int = 3,
+    k: int = 5,
     similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
 ) -> RetrievalResult:
     """
@@ -155,6 +157,7 @@ def retrieve(
     # ── Step 1: embed the query ──────────────────────────────────────────────
     query_vector: np.ndarray = model.encode(
         [query.strip()],
+        normalize_embeddings=True,
         convert_to_numpy=True,
         show_progress_bar=False,
     ).astype(np.float32)
@@ -172,6 +175,9 @@ def retrieve(
 
         text = store.chunks[idx]
         l2 = float(dist)
+        
+        # In normalized vector space: ||u-v||^2 = 2 - 2*cos(theta) => cos = 1 - l2/2
+        cosine = max(-1.0, min(1.0, 1.0 - (l2 / 2.0)))
         passed = l2 <= similarity_threshold
 
         all_chunks.append(
@@ -181,13 +187,13 @@ def retrieve(
                 preview=_make_preview(text),
                 l2_distance=l2,
                 passed_threshold=passed,
+                cosine_similarity=cosine,
             )
         )
 
     # ── Step 4: build context from passing chunks only ───────────────────────
     passing = [c for c in all_chunks if c.passed_threshold]
     context = "\n\n".join(c.text for c in passing)
-
     status = RetrievalStatus.SUCCESS if passing else RetrievalStatus.BELOW_THRESHOLD
 
     return RetrievalResult(

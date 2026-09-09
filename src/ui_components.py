@@ -134,9 +134,9 @@ def render_sidebar(gemini_model_name: str) -> tuple[int, float]:
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 0.75rem; margin-top: 0.4rem; font-size: 0.78rem;">
                 <div style="color: #94a3b8; margin-bottom: 0.25rem;">Current threshold cutoff: <b style="color: #6366f1;">{similarity_threshold:.2f}</b></div>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span style="color: #10b981;">● &lt;0.5 High</span>
-                    <span style="color: #f59e0b;">● 0.5-1.0 Med</span>
-                    <span style="color: #f43f5e;">● &gt;1.0 Low</span>
+                    <span style="color: #10b981;">● &lt;0.8 High</span>
+                    <span style="color: #f59e0b;">● 0.8-1.5 Med</span>
+                    <span style="color: #f43f5e;">● &gt;1.5 Low</span>
                 </div>
             </div>
             """,
@@ -241,13 +241,17 @@ def render_retrieval_panel(
             return
 
         for chunk in result.chunks:
-            # Calculate normalized similarity percentage for visual bar (0 to 100%)
-            # Where L2 = 0 is 100% confidence and L2 >= 2.0 is 0%
-            confidence = max(0.0, min(100.0, (1.0 - (chunk.l2_distance / 2.0)) * 100.0))
+            # Calculate calibrated confidence percentage (0% to 100%)
+            if hasattr(chunk, "cosine_similarity") and chunk.cosine_similarity != 0.0:
+                confidence = max(0.0, min(100.0, ((chunk.cosine_similarity + 1.0) / 2.0) * 100.0))
+            else:
+                confidence = max(0.0, min(100.0, (1.0 - (chunk.l2_distance / 2.0)) * 100.0))
             
             bar_color = "#10b981" if chunk.passed_threshold else "#f43f5e"
             badge_class = "badge-doc" if chunk.passed_threshold else "badge-gen"
             badge_text = "✓ PASSED TO GEMINI" if chunk.passed_threshold else "✗ FILTERED OUT"
+
+            cos_display = f" | Cos: <b>{chunk.cosine_similarity:+.2f}</b>" if hasattr(chunk, "cosine_similarity") else ""
 
             st.markdown(
                 f"""
@@ -255,7 +259,7 @@ def render_retrieval_panel(
                     <div class="retrieval-header">
                         <div>
                             <span style="font-weight: 700; color: #f1f5f9; font-size: 0.95rem;">Rank #{chunk.rank}</span>
-                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.5rem;">L2 Distance: <b>{chunk.l2_distance:.4f}</b></span>
+                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.5rem;">L2: <b>{chunk.l2_distance:.3f}</b>{cos_display}</span>
                         </div>
                         <span class="attribution-pill {badge_class}">{badge_text}</span>
                     </div>

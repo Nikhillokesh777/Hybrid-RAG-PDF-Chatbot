@@ -277,8 +277,8 @@ All global application defaults are maintained in [src/config.py](file:///d:/Des
 | `DEFAULT_CHUNK_OVERLAP` | `200` | `chunker.py` | Overlap characters to maintain context across chunk boundaries. |
 | `EMBEDDING_MODEL_NAME` | `"all-MiniLM-L6-v2"` | `vector_store.py` | Hugging Face SentenceTransformer embedding model (384-dim). |
 | `EMBEDDING_BATCH_SIZE` | `64` | `vector_store.py` | Batch size when vectorizing large document chunk lists. |
-| `DEFAULT_TOP_K` | `3` | `retrieval.py` | Number of candidate chunks retrieved by FAISS per query. |
-| `DEFAULT_SIMILARITY_THRESHOLD`| `1.2` (L2) | `retrieval.py` | Cutoff L2 distance. Lower is stricter; chunks with higher L2 are filtered out. |
+| `DEFAULT_TOP_K` | `5` | `retrieval.py` | Number of candidate chunks retrieved by FAISS per query. |
+| `DEFAULT_SIMILARITY_THRESHOLD`| `1.7` (L2) | `retrieval.py` | Cutoff L2 distance in normalized vector space (maps to positive cosine similarity). |
 | `MEMORY_CONTEXT_WINDOW` | `3` | `memory_manager.py` | Number of recent Q&A turns injected into Gemini prompts. |
 | `GEMINI_ANSWER_MAX_TOKENS` | `1700` | `app.py` | Token budget for grounded document responses. |
 | `GEMINI_FALLBACK_MAX_TOKENS`| `400` | `app.py` | Token budget for fallback general knowledge responses. |

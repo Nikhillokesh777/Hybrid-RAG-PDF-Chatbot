@@ -137,6 +137,41 @@ def _merge_pdfs(
 # Gemini answer generation
 # =========================================================
 
+def _is_summary_or_overview_query(question: str) -> bool:
+    """Detect if the user's question asks for an overview, summary, or global document themes."""
+    q = question.lower().strip()
+    keywords = [
+        "summary", "summarize", "summarise", "overview", "highlight",
+        "main topic", "what is this document", "about this document",
+        "outline", "key finding", "key point", "executive summary",
+        "topics covered", "what does this document discuss", "tell me about this document",
+        "main conclusions", "key data points",
+    ]
+    return any(kw in q for kw in keywords)
+
+
+def _build_overview_context(chunks: list[str], max_chars: int = 11000) -> str:
+    """
+    Assemble a representative cross-section of chunks across the entire document
+    for global summary and overview inquiries.
+    """
+    if not chunks:
+        return ""
+    if len(chunks) <= 6:
+        return "\n\n".join(chunks)
+
+    selected = [chunks[0], chunks[1]]
+    step = max(1, (len(chunks) - 2) // 4)
+    for i in range(2, len(chunks) - 1, step):
+        if len(selected) < 6:
+            selected.append(chunks[i])
+
+    if chunks[-1] not in selected:
+        selected.append(chunks[-1])
+
+    return "\n\n".join(selected)[:max_chars]
+
+
 def _judge(context: str, question: str) -> tuple[bool, bool]:
     """
     Ask Gemini whether the retrieved context is sufficient to answer
@@ -153,7 +188,10 @@ def _judge(context: str, question: str) -> tuple[bool, bool]:
     )
     try:
         r = gemini.generate_content(prompt)
-        return r.text.strip().upper() == "YES", False
+        text = r.text.strip().upper()
+        # Robust parsing to handle punctuation, newlines, or conversational prefixes
+        can_answer = text.startswith("YES") or "YES" in text.split()
+        return can_answer, False
     except Exception as exc:
         logger.warning("Judge call failed: %s", exc)
         return False, True
@@ -166,18 +204,16 @@ def _generate_document_answer(
 ) -> str:
     """
     Generate a Gemini answer grounded in the retrieved document chunks.
-
-    The retrieved chunks are passed to Gemini exactly as returned by FAISS —
-    no compression, no sentence filtering, no summarization. This preserves
-    full semantic continuity and gives Gemini the most complete context.
     """
     history_block = f"\n\n{conversation_history}\n\n" if conversation_history else "\n\n"
     prompt = (
-        "Answer the question using only the information in the context below.\n"
-        "If the answer is not present in the context, say so clearly.\n"
+        "You are an expert AI document assistant.\n"
+        "Answer the user's question thoroughly, accurately, and factually based on the provided document context below.\n"
+        "Explain key terms, concepts, algorithms, and definitions clearly based on what is stated in the document.\n"
+        "If the document does not mention the topic at all, state clearly that it is not covered in the uploaded document.\n"
         f"{history_block}"
-        f"Context:\n{context}\n\n"
-        f"Question:\n{question}"
+        f"Document Context:\n{context}\n\n"
+        f"User Question:\n{question}"
     )
     try:
         r = gemini.generate_content(
@@ -369,6 +405,18 @@ with st.spinner("Searching document semantically..."):
         result.hit_count, retrieval_ms, result.status.name,
     )
 
+# ── Adaptive Overview Context ─────────────────────────────────────────────────
+# For broad inquiries (executive summary, main conclusions, document themes),
+# construct a representative cross-section across the entire document.
+is_overview = _is_summary_or_overview_query(question)
+if is_overview and all_chunks:
+    logger.info("Broad overview inquiry detected: compiling composite document cross-section.")
+    overview_ctx = _build_overview_context(all_chunks)
+    if not result.has_context or result.status == RetrievalStatus.BELOW_THRESHOLD or len(result.context) < 800:
+        result.context = overview_ctx
+        result.status = RetrievalStatus.SUCCESS
+        result.hit_count = max(result.hit_count, 1)
+
 # Show retrieval panel (what FAISS found, scores, pass/filter badges)
 render_retrieval_panel(result, similarity_threshold, retrieval_ms)
 
@@ -377,7 +425,7 @@ if result.status == RetrievalStatus.EMPTY_STORE:
     st.error("Vector store is empty. Please re-upload your PDFs.")
     st.stop()
 
-if result.status == RetrievalStatus.BELOW_THRESHOLD:
+if result.status == RetrievalStatus.BELOW_THRESHOLD and not is_overview:
     st.warning(
         f"No retrieved chunk was within the similarity threshold "
         f"({similarity_threshold:.2f}). "
@@ -391,9 +439,8 @@ t_gen = time.perf_counter()
 if result.has_context:
     can_answer, judge_failed = _judge(result.context, question)
     if judge_failed:
-        st.warning(
-            "Could not verify context relevance — falling back to general knowledge."
-        )
+        # If judge times out or encounters transient issues, proceed with document context
+        can_answer = True
 else:
     can_answer   = False
     judge_failed = False

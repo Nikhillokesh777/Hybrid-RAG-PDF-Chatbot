@@ -41,7 +41,7 @@ def _chunks_fingerprint(chunks: list[str]) -> str:
     different document always gets a fresh index rather than loading a
     stale one from a previous upload.
     """
-    content = "\n".join(chunks).encode("utf-8")
+    content = ("v2\n" + "\n".join(chunks)).encode("utf-8")
     return hashlib.md5(content).hexdigest()[:16]
 
 
@@ -80,7 +80,7 @@ def build_vector_store(chunks: list[str]) -> VectorStore:
     Encode chunks into embeddings and build a FAISS L2 index.
 
     Steps:
-        1. Embed all chunks → float32 numpy array of shape (n, 384)
+        1. Embed all chunks with L2 normalization → float32 numpy array of shape (n, 384)
         2. Create a FAISS IndexFlatL2 (exact nearest-neighbour, L2 distance)
         3. Add all embeddings to the index
         4. Return a VectorStore containing the index, embeddings, and chunks
@@ -99,10 +99,11 @@ def build_vector_store(chunks: list[str]) -> VectorStore:
 
     model = get_embedding_model()
 
-    # encode() returns a (n_chunks, 384) float32 numpy array
+    # encode() returns a (n_chunks, 384) float32 numpy array with unit length
     embeddings: np.ndarray = model.encode(
         chunks,
         batch_size=64,          # process in batches to avoid OOM on large docs
+        normalize_embeddings=True,
         show_progress_bar=False,
         convert_to_numpy=True,
     )
